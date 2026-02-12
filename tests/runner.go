@@ -13,10 +13,11 @@ import (
 )
 
 var testGroups = map[string][]string{
-	"log":       {"fields", "level", "mode", "logger", "options", "pretty", "json", "benchmark", "allLog"},
+	"log":       {"fields", "level", "mode", "logger", "optionsLog", "pretty", "jsonLog", "benchmark", "allLog"},
 	"config":    {"loadConfig", "fromMap", "get", "getString", "getInt", "getInt64", "getBool", "getFloat64", "getDuration", "getOrDefault", "getStringOrDefault", "getIntOrDefault", "getBoolOrDefault", "has", "unmarshalKey", "set", "allConfig"},
 	"converter": {"toString", "toInt", "toInt64", "toBool", "toDuration", "allConverter"},
 	"json":      {"loadJson", "unmarshal", "unmarshalInto", "notFound", "invalidJSON", "allJson"},
+	"errors":    {"new", "sentinels", "wrap", "rootCause", "fromError", "httpStatus", "optionsErrors", "jsonErrors", "specialized", "multiError", "publicError", "helpers", "allErrors"},
 }
 
 var testPatterns = map[string]string{
@@ -25,9 +26,9 @@ var testPatterns = map[string]string{
 	"level":              "TestLogger_LevelFiltering",
 	"mode":               "TestLogger_Info_Output|TestLogger_WithFields",
 	"logger":             "TestLogger_Info_Output|TestLogger_Concurrency",
-	"options":            "TestLogger",
+	"optionsLog":         "TestLogger",
 	"pretty":             "TestLogger_LevelFiltering|TestLogger_Concurrency",
-	"json":               "TestLogger_Info_Output|TestLogger_WithFields",
+	"jsonLog":            "TestLogger_Info_Output|TestLogger_WithFields",
 	"benchmark":          "BenchmarkLogger_Info",
 	"allConfig":          "TestConfig_Load|TestConfig_FromMap|TestConfig_Get|TestConfig_GetString|TestConfig_GetInt|TestConfig_GetInt64|TestConfig_GetBool|TestConfig_GetFloat64|TestConfig_GetDuration|TestConfig_GetOrDefault|TestConfig_GetStringOrDefault|TestConfig_GetIntOrDefault|TestConfig_GetBoolOrDefault|TestConfig_Has|TestConfig_UnmarshalKey|TestConfig_Set",
 	"loadConfig":         "TestConfig_Load",
@@ -58,6 +59,19 @@ var testPatterns = map[string]string{
 	"unmarshal":          "TestJson_Unmarshal",
 	"unmarshalInto":      "TestJson_UnmarshalInto",
 	"allJson":            "TestJson_Load|TestJson_Unmarshal|TestJson_UnmarshalInto|TestJson_Load_NotFound|TestJson_Load_InvalidJSON",
+	"allErrors":          "TestErrors_",
+	"new":                "TestErrors_New",
+	"sentinels":          "TestErrors_SentinelErrors",
+	"wrap":               "TestErrors_Wrap|TestErrors_Wrapf|TestErrors_RootCause",
+	"rootCause":          "TestErrors_RootCause",
+	"fromError":          "TestErrors_NewFromError",
+	"httpStatus":         "TestErrors_HTTPStatus",
+	"optionsErrors":      "TestErrors_Options",
+	"jsonErrors":         "TestErrors_MarshalJSON|TestErrors_UnmarshalJSON",
+	"specialized":        "TestErrors_LimitError|TestErrors_RBACError|TestErrors_FieldErrorf|TestErrors_TimeoutError",
+	"multiError":         "TestErrors_MultiError",
+	"publicError":        "TestErrors_PublicError",
+	"helpers":            "TestErrors_IsRetryable|TestErrors_IsTimeoutErr|TestErrors_LogLevel",
 }
 
 func main() {
@@ -103,7 +117,7 @@ func main() {
 }
 
 func runTestByName(name string) {
-	// Support "log/fields" or "fields" (bare name)
+	// Support "log/fields" or "errors/new" or "fields" (bare name)
 	key := name
 	if !strings.Contains(name, "/") {
 		key = "log/" + name
