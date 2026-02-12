@@ -1,4 +1,4 @@
-package logger
+package log
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LooneY2K/common-pkg-svc/logger/internal/bufferpool"
+	"github.com/LooneY2K/common-pkg-svc/log/internal/bufferpool"
 )
 
 func (l *Logger) logPretty(level Level, msg string, fields ...Field) {

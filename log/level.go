@@ -1,4 +1,4 @@
-package logger
+package log
 
 type Level uint8
 
