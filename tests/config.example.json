@@ -1,0 +1,16 @@
+{
+  "log": {
+    "level": "info",
+    "mode": "json",
+    "component": "my-service"
+  },
+  "server": {
+    "port": 8080,
+    "timeout": "30s"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "ssl": true
+  }
+}
