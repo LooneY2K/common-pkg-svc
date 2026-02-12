@@ -8,8 +8,9 @@ import (
 type Logger struct {
 	out       io.Writer
 	level     Level
-	component string
 	mode      Mode
+	component string
+	color     bool
 	timeFn    func() time.Time
 }
 
