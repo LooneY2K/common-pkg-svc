@@ -18,6 +18,7 @@ go get github.com/LooneY2K/common-pkg-svc
 | [config](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/config) | JSON config loading, env overrides, dot-notation access |
 | [json](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/json) | JSON file loading and unmarshaling into maps |
 | [converter](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/converter) | Type conversion (string, int, bool, duration, etc.) |
+| [errors](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/errors) | Structured errors with codes, kinds, wrapping, HTTP status, and JSON marshaling |
 | [log](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/log) | Structured logger with pretty/JSON modes and levels |
 
 ---
@@ -112,6 +113,37 @@ converter.ToDuration("5s")       // 5*time.Second
 
 ---
 
+### Errors
+
+Structured errors with codes, kinds, wrapping, and HTTP status mapping:
+
+```go
+import apperr "github.com/LooneY2K/common-pkg-svc/errors"
+
+// New error with options
+err := apperr.New(apperr.CodeInvalidInput, "db failed", "Something went wrong",
+    apperr.WithCause(underlyingErr),
+    apperr.WithTraceID("abc-123"),
+    apperr.WithRetryable(true),
+)
+
+// Sentinel errors
+if errors.Is(err, apperr.ErrNotFound) { /* 404 */ }
+if apperr.IsRetryable(err) { /* retry */ }
+
+// Wrap existing errors
+err = apperr.Wrap(err, "handler failed")
+root := apperr.RootCause(err)
+
+// HTTP and client-safe message
+status := err.(*apperr.AppError).HTTPStatus()  // 400, 404, 500, etc.
+safeMsg := apperr.PublicError(err)             // user-safe message for responses
+```
+
+> Use an import alias (`apperr`) to avoid conflicts with the standard `errors` package.
+
+---
+
 ### Log
 
 Structured logger with Pretty and JSON modes, level filtering, and structured fields:
@@ -158,6 +190,9 @@ go test ./tests/ -v -run TestConverter_
 # JSON
 go test ./tests/ -v -run TestJson_
 
+# Errors
+go test ./tests/ -v -run TestErrors_
+
 # Log (includes benchmarks)
 go test ./tests/ -v -run TestLogger_
 go test ./tests/ -bench=. -benchmem
@@ -173,7 +208,12 @@ make tests
 go run ./tests/
 ```
 
-This launches a prompt to select a test group (config, converter, json, log) and a specific test to run.
+This launches a prompt to select a test group (**config**, **converter**, **errors**, **json**, **log**) and a specific test to run. You can also run a test directly:
+
+```bash
+go run ./tests/ -consumer-type errors/new
+go run ./tests/ -consumer-type config/loadConfig
+```
 
 ---
 
