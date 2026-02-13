@@ -38,11 +38,18 @@ func WithTimeFunc(fn func() time.Time) Option {
 	}
 }
 
+func WithColor(color bool) Option {
+	return func(l *Logger) {
+		l.color = color
+	}
+}
+
 func defaultOptions() *Logger {
 	return &Logger{
 		out:    os.Stdout,
 		level:  Info,
 		mode:   Pretty,
 		timeFn: time.Now,
+		color:  true,
 	}
 }
