@@ -1,4 +1,4 @@
-package log
+package elog
 
 type Level uint8
 

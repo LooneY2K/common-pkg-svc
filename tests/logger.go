@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/LooneY2K/common-pkg-svc/log"
+	log "github.com/LooneY2K/common-pkg-svc/log/custom"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
