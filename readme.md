@@ -19,6 +19,7 @@ go get github.com/LooneY2K/common-pkg-svc
 | [json](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/json) | JSON file loading and unmarshaling into maps |
 | [converter](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/converter) | Type conversion (string, int, bool, duration, etc.) |
 | [errors](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/errors) | Structured errors with codes, kinds, wrapping, HTTP status, and JSON marshaling |
+| [respond](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/respond) | HTTP JSON responses (OK, Created, Error) with a consistent response shape |
 | [log](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/log) | Structured logger with pretty/JSON modes and levels |
 
 ---
@@ -141,6 +142,35 @@ safeMsg := apperr.PublicError(err)             // user-safe message for response
 ```
 
 > Use an import alias (`apperr`) to avoid conflicts with the standard `errors` package.
+
+---
+
+### Respond
+
+Consistent JSON HTTP responses for APIs:
+
+```go
+import (
+    "net/http"
+    "github.com/LooneY2K/common-pkg-svc/respond"
+    apperr "github.com/LooneY2K/common-pkg-svc/errors"
+)
+
+// Success responses
+respond.OK(rw, map[string]any{"id": 1, "name": "foo"})
+respond.Created(rw, newResource)
+
+// Error response from AppError (uses HTTP status and message)
+if appErr != nil {
+    respond.Error(rw, appErr)
+    return
+}
+
+// Generic failure (500)
+respond.Fail(rw, "internal error")
+```
+
+Response shape: `{"status":200,"data":{...},"error":false,"message":""}` or with `error:true` and `message` set.
 
 ---
 
