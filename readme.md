@@ -250,3 +250,4 @@ go run ./tests/ -consumer-type config/loadConfig
 ## License
 
 See [LICENSE](LICENSE) for details.
+# common-pkg-svc
