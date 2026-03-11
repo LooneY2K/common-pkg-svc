@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	elog "github.com/LooneY2K/common-pkg-svc/log/custom"
 	"github.com/LooneY2K/common-pkg-svc/server"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ServerConfig struct {
@@ -22,7 +22,7 @@ type ServerConfig struct {
 	Port         int
 }
 
-func StartAndGracefulShutdown(ctx context.Context, lgr *elog.Logger, router *gin.Engine, config server.ServerConfig) {
+func StartAndGracefulShutdown(ctx context.Context, lgr *zap.SugaredLogger, router *gin.Engine, config server.ServerConfig) {
 
 	s := &http.Server{
 		Addr:         fmt.Sprintf("%s%d", ":", config.Port),
@@ -32,21 +32,21 @@ func StartAndGracefulShutdown(ctx context.Context, lgr *elog.Logger, router *gin
 		Handler:      router,
 	}
 	go func() {
-		lgr.Info("starting server on port: ", elog.Int("port", config.Port))
+		lgr.Info("starting server on port: ", zap.Int("port", config.Port))
 		err := s.ListenAndServe()
 		if err != nil {
-			lgr.Error("failed to start server", elog.Err(err))
+			lgr.Error("failed to start server", zap.Error(err))
 		}
 	}()
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	// wait indefinitely until we receive an interrupt signal
 	sig := <-signalChan
-	lgr.Info("Received terminate, gracefully shutting down: ", elog.String("signal", sig.String()))
+	lgr.Info("Received terminate, gracefully shutting down: ", zap.String("signal", sig.String()))
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(config.ShutdownWait)*time.Second)
 	err := s.Shutdown(ctx)
 	if err != nil {
-		lgr.Error("failed to shutdown server", elog.Err(err))
+		lgr.Error("failed to shutdown server", zap.Error(err))
 		panic("server shutdown failure")
 	}
 	cancel()

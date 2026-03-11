@@ -1,0 +1,16 @@
+{
+"avatar_source": "inhouse",
+"client_id": "699d8af166ef719402ee6e15",
+"avatar_type": "full",
+"generate": true,
+"input": {
+"silenced_url": "https://storage.googleapis.com/bucket-fi-development-apps-5b0640d5/original/videos/njyc48q7ctevqjtbscwreapq.mp4",
+"video_url": "https://storage.googleapis.com/bucket-fi-development-apps-5b0640d5/original/videos/jiymez9ljgf9nosuodcrlauq.mp4",
+"silenced_file_name": "Trupthi_No Voices.mp4",
+"video_file_name": "Trupthi_With_Voices.mp4",
+"audio_url": "https://storage.googleapis.com/bucket-fi-development-apps-5b0640d5/original/videos/u4750am0y17uvc34l1le4ipm.mp3"
+
+},
+"name": "New avatar",
+"voice_ref_id": "69b00069c265c737c321ccc1"
+}

@@ -24,7 +24,7 @@ func toJSON(rw http.ResponseWriter, status int, data interface{}, message string
 		Message: message,
 	}
 	if err := json.NewEncoder(rw).Encode(response); err != nil {
-		return errors.New(errors.CodeInternal, err.Error(), "")
+		return errors.InternalServerError(err.Error())
 	}
 	return nil
 }
@@ -42,5 +42,5 @@ func Fail(rw http.ResponseWriter, data interface{}) *errors.AppError {
 }
 
 func Error(rw http.ResponseWriter, appErr *errors.AppError) *errors.AppError {
-	return toJSON(rw, appErr.HTTPStatus(), nil, appErr.Error(), true)
+	return toJSON(rw, appErr.StatusCode, nil, appErr.Error(), true)
 }
