@@ -51,6 +51,17 @@ var All9ProjectPermissions = []string{
 	PermCanExport, PermCanViewDraft, PermCanViewPublished, PermCanManageUsers, PermCanCallAPI,
 }
 
+// Computed permissions on a survey. Survey-scoped relations are NOT the same
+// as project-scoped — survey's `can_view` is derived from `can_view_published`
+// on the parent project (see infra/fga/model.fga), so passing PermCanViewPublished
+// to a survey-typed Check would produce an OpenFGA validation_error.
+// Use the survey-scoped constants below when the FGA object type is `survey`.
+const (
+	PermSurveyCanView      = "can_view"        // ≡ can_view_published from project
+	PermSurveyCanViewDraft = "can_view_draft"  // ≡ can_view_draft from project
+	PermSurveyCanApprove   = "can_approve"     // ≡ can_approve from project
+)
+
 // DefaultClientCreatorRole is the org-scope role assigned to the user who
 // creates a new client/organisation. Per SCRUM-117 — configurable.
 const DefaultClientCreatorRole = RoleSuperAdmin
