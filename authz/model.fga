@@ -1,0 +1,24 @@
+model
+  schema 1.1
+
+type user
+
+# A share link. Revoking access is deleting the tuple; expiry is enforced
+# by the application, because a tuple has no clock.
+type link
+
+# File and folder are one type: the rules are identical, and a single type
+# lets `parent` point at either.
+type node
+  relations
+    define parent: [node]
+
+    # directly assignable — what the share modal writes
+    define owner: [user]
+    define editor: [user, link]
+    define viewer: [user, user:*, link]
+
+    # effective permissions — what handlers check
+    define can_manage: owner or can_manage from parent
+    define can_edit: editor or can_manage or can_edit from parent
+    define can_view: viewer or can_edit or can_view from parent

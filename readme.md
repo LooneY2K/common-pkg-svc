@@ -21,6 +21,7 @@ go get github.com/LooneY2K/common-pkg-svc
 | [errors](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/errors) | Structured errors with codes, kinds, wrapping, HTTP status, and JSON marshaling |
 | [respond](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/respond) | HTTP JSON responses (OK, Created, Error) with a consistent response shape |
 | [log](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/log) | Structured logger with pretty/JSON modes and levels |
+| [authz](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/authz) | Puckoops Drive permissions: the OpenFGA model plus direct relationship checks |
 
 ---
 

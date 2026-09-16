@@ -74,6 +74,23 @@ const fgaWriteBatchLimit = 100
 // we support in dev/prod (OIDC client-credentials is on the SDK but not
 // configured here). The token comes from `FGA_AUTH_TOKEN`.
 func NewClient(apiURL, storeID, modelID, authToken string) (*SDKClient, error) {
+	if authToken == "" {
+		return nil, fmt.Errorf("fga: authToken is required")
+	}
+	return newClient(apiURL, storeID, modelID, authToken)
+}
+
+// NewClientNoAuth is NewClient for a server started without a preshared key,
+// which is how OpenFGA runs in the local docker-compose stack. Everything
+// else — including mandatory model pinning — is identical.
+//
+// Deployed environments must use NewClient: a store reachable without a token
+// is a store anyone on the network can rewrite.
+func NewClientNoAuth(apiURL, storeID, modelID string) (*SDKClient, error) {
+	return newClient(apiURL, storeID, modelID, "")
+}
+
+func newClient(apiURL, storeID, modelID, authToken string) (*SDKClient, error) {
 	if apiURL == "" {
 		return nil, fmt.Errorf("fga: apiURL is required")
 	}
@@ -83,20 +100,17 @@ func NewClient(apiURL, storeID, modelID, authToken string) (*SDKClient, error) {
 	if modelID == "" {
 		return nil, fmt.Errorf("fga: modelID is required (pinning is mandatory)")
 	}
-	if authToken == "" {
-		return nil, fmt.Errorf("fga: authToken is required")
-	}
 
 	cfg := &client.ClientConfiguration{
 		ApiUrl:               apiURL,
 		StoreId:              storeID,
 		AuthorizationModelId: modelID,
-		Credentials: &credentials.Credentials{
+	}
+	if authToken != "" {
+		cfg.Credentials = &credentials.Credentials{
 			Method: credentials.CredentialsMethodApiToken,
-			Config: &credentials.Config{
-				ApiToken: authToken,
-			},
-		},
+			Config: &credentials.Config{ApiToken: authToken},
+		}
 	}
 
 	sdk, err := client.NewSdkClient(cfg)
