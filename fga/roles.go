@@ -57,9 +57,9 @@ var All9ProjectPermissions = []string{
 // to a survey-typed Check would produce an OpenFGA validation_error.
 // Use the survey-scoped constants below when the FGA object type is `survey`.
 const (
-	PermSurveyCanView      = "can_view"        // ≡ can_view_published from project
-	PermSurveyCanViewDraft = "can_view_draft"  // ≡ can_view_draft from project
-	PermSurveyCanApprove   = "can_approve"     // ≡ can_approve from project
+	PermSurveyCanView      = "can_view"       // ≡ can_view_published from project
+	PermSurveyCanViewDraft = "can_view_draft" // ≡ can_view_draft from project
+	PermSurveyCanApprove   = "can_approve"    // ≡ can_approve from project
 )
 
 // DefaultClientCreatorRole is the org-scope role assigned to the user who
