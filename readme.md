@@ -22,6 +22,7 @@ go get github.com/LooneY2K/common-pkg-svc
 | [respond](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/respond) | HTTP JSON responses (OK, Created, Error) with a consistent response shape |
 | [log](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/log) | Structured logger with pretty/JSON modes and levels |
 | [authz](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/authz) | Puckoops Drive permissions: the OpenFGA model plus direct relationship checks |
+| [product](https://pkg.go.dev/github.com/LooneY2K/common-pkg-svc/product) | The product lines sharing the platform (`orbit`, `puckoops`) and the bucket prefix, database and OpenFGA store each owns |
 
 ---
 
