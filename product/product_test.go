@@ -12,7 +12,7 @@ func TestParseReturnsEveryProduct(t *testing.T) {
 }
 
 func TestParseRejectsAnythingElse(t *testing.T) {
-	for _, name := range []string{"", "Orbit", "PUCKOOPS", "drive", " orbit"} {
+	for _, name := range []string{"", "Orbit", "PUCKOOPS", "drive", " orbit", "Orblode", "geoid"} {
 		if _, err := Parse(name); err == nil {
 			t.Errorf("Parse(%q) accepted a name that is not a product", name)
 		}
@@ -25,6 +25,9 @@ func TestScopesAreNamedAfterTheProduct(t *testing.T) {
 	}
 	if Orbit.Database() != "orbit" || Orbit.ObjectPrefix() != "orbit/" {
 		t.Errorf("orbit scopes = %q %q", Orbit.Database(), Orbit.ObjectPrefix())
+	}
+	if Orblode.Database() != "orblode" || Orblode.FGAStore() != "orblode" || Orblode.ObjectPrefix() != "orblode/" {
+		t.Errorf("orblode scopes = %q %q %q", Orblode.Database(), Orblode.FGAStore(), Orblode.ObjectPrefix())
 	}
 }
 

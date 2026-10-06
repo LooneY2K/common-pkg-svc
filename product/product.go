@@ -18,9 +18,10 @@ type Product string
 const (
 	Orbit    Product = "orbit"
 	Puckoops Product = "puckoops"
+	Orblode  Product = "orblode"
 )
 
-func All() []Product { return []Product{Orbit, Puckoops} }
+func All() []Product { return []Product{Orbit, Puckoops, Orblode} }
 
 // Parse is exact: "Orbit" is not a product, because the name is also a bucket
 // prefix and a database name, where case matters.
