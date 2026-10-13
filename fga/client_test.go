@@ -5,9 +5,40 @@
 package fga
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+const (
+	testStoreID = "01HZ8Y0J3RJN0Y3FYTC8RZ7K7T"
+	testModelID = "01HZ8Y0J3RJN0Y3FYTC8RZ7K7V"
+)
+
+// fakeServer answers every request with reply and records each body by path.
+func fakeServer(t *testing.T, reply string) (*SDKClient, map[string]map[string]any) {
+	t.Helper()
+	bodies := map[string]map[string]any{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var body map[string]any
+		_ = json.Unmarshal(raw, &body)
+		bodies[r.URL.Path] = body
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, reply)
+	}))
+	t.Cleanup(srv.Close)
+	c, err := NewClientNoAuth(srv.URL, testStoreID, testModelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c, bodies
+}
 
 func TestNewClient_RejectsMissingParams(t *testing.T) {
 	cases := []struct {
@@ -54,6 +85,10 @@ func TestSubjectHelpers(t *testing.T) {
 		{"project", ProjectSubject("p1"), "project:p1"},
 		{"survey", SurveySubject("s1"), "survey:s1"},
 		{"workspace", WorkspaceSubject("w1"), "workspace:w1"},
+		{"team", TeamSubject("t1"), "team:t1"},
+		{"userset", Userset("team", "t1", "maintainer"), "team:t1#maintainer"},
+		{"team members", TeamMembers("t1"), "team:t1#member"},
+		{"organisation members", OrganisationMembers("o1"), "organisation:o1#member"},
 		{"generic", Subject("widget", "42"), "widget:42"},
 	}
 	for _, tc := range cases {
@@ -83,6 +118,99 @@ func TestRoleValidators(t *testing.T) {
 	}
 	if IsClientRole(RoleProjectManager) {
 		t.Fatal("project_manager is NOT a client role")
+	}
+	if !IsValidWorkspaceRole(RoleWorkspaceAdmin) || !IsValidWorkspaceRole(RoleClientViewer) {
+		t.Fatal("admin and client_viewer should be valid workspace roles")
+	}
+	if IsValidWorkspaceRole(RoleProjectManager) {
+		t.Fatal("project_manager is held through workspace admin, not granted on a workspace")
+	}
+	if !IsValidTeamRole(RoleTeamMaintainer) || IsValidTeamRole(RoleOrgAdmin) {
+		t.Fatal("maintainer is a team role and org_admin is not")
+	}
+}
+
+func TestApplyAsksTheServerToIgnoreDuplicatesAndMissingTuples(t *testing.T) {
+	c, bodies := fakeServer(t, `{}`)
+	err := c.Apply(context.Background(),
+		[]TupleRequest{{User: "team:t1#member", Relation: "reviewer", Object: "workspace:w1"}},
+		[]TupleRequest{{User: "user:u1", Relation: "reviewer", Object: "workspace:w1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := bodies["/stores/"+testStoreID+"/write"]
+	if body["authorization_model_id"] != testModelID {
+		t.Fatalf("model not pinned: %v", body)
+	}
+	writes := body["writes"].(map[string]any)
+	deletes := body["deletes"].(map[string]any)
+	if writes["on_duplicate"] != "ignore" || deletes["on_missing"] != "ignore" {
+		t.Fatalf("writes %v, deletes %v", writes, deletes)
+	}
+	key := writes["tuple_keys"].([]any)[0].(map[string]any)
+	if key["user"] != "team:t1#member" || key["object"] != "workspace:w1" {
+		t.Fatalf("write key %v", key)
+	}
+}
+
+func TestApplyRefusesMoreThanOneWriteCanCarry(t *testing.T) {
+	c, bodies := fakeServer(t, `{}`)
+	tuples := make([]TupleRequest, 101)
+	for i := range tuples {
+		tuples[i] = TupleRequest{User: fmt.Sprintf("user:u%d", i), Relation: "member", Object: "team:t1"}
+	}
+	if err := c.Apply(context.Background(), tuples, nil); err == nil {
+		t.Fatal("expected an error for 101 tuples")
+	}
+	if len(bodies) != 0 {
+		t.Fatalf("nothing should reach the server, got %v", bodies)
+	}
+}
+
+func TestDeleteTuplesChunksAtOneHundred(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	t.Cleanup(srv.Close)
+	c, err := NewClientNoAuth(srv.URL, testStoreID, testModelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tuples := make([]TupleRequest, 150)
+	for i := range tuples {
+		tuples[i] = TupleRequest{User: fmt.Sprintf("user:u%d", i), Relation: "member", Object: "team:t1"}
+	}
+	if err := c.DeleteTuples(context.Background(), tuples); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("want 2 writes, got %d", calls)
+	}
+}
+
+func TestListUsersReturnsTypedUsersAndSkipsUsersets(t *testing.T) {
+	c, bodies := fakeServer(t, `{"users":[{"object":{"type":"user","id":"u1"}},{"userset":{"type":"team","id":"t1","relation":"member"}}]}`)
+	users, err := c.ListUsers(context.Background(), "project:p1", "survey_manager", "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 1 || users[0] != "user:u1" {
+		t.Fatalf("users %v", users)
+	}
+	body := bodies["/stores/"+testStoreID+"/list-users"]
+	object := body["object"].(map[string]any)
+	if object["type"] != "project" || object["id"] != "p1" || body["relation"] != "survey_manager" {
+		t.Fatalf("request %v", body)
+	}
+}
+
+func TestListUsersRejectsAnUntypedObject(t *testing.T) {
+	c, _ := fakeServer(t, `{}`)
+	if _, err := c.ListUsers(context.Background(), "p1", "survey_manager", "user"); err == nil {
+		t.Fatal("expected an error")
 	}
 }
 

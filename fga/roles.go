@@ -19,6 +19,17 @@ const (
 	RoleMember     = "member"
 )
 
+// RoleWorkspaceAdmin manages a workspace and its access, and is project
+// manager on every project in it. The other workspace roles are the project
+// roles below project manager, inherited by each project in the workspace.
+const RoleWorkspaceAdmin = "admin"
+
+// Team roles. A maintainer is also a member.
+const (
+	RoleTeamMaintainer = "maintainer"
+	RoleTeamMember     = "member"
+)
+
 // ValidProjectRoles is the set of FGA relations assignable at project scope.
 var ValidProjectRoles = []string{
 	RoleProjectManager, RoleSurveyManager, RoleGISAnalyst, RoleMiningEngineer,
@@ -27,6 +38,15 @@ var ValidProjectRoles = []string{
 
 // ValidOrgRoles is the set of FGA relations assignable at organisation scope.
 var ValidOrgRoles = []string{RoleSuperAdmin, RoleOrgAdmin, RoleMember}
+
+// ValidWorkspaceRoles is the set of FGA relations assignable at workspace scope.
+var ValidWorkspaceRoles = []string{
+	RoleWorkspaceAdmin, RoleSurveyManager, RoleGISAnalyst, RoleMiningEngineer,
+	RoleReviewer, RoleClientAdmin, RoleClientViewer, RoleAPIUser,
+}
+
+// ValidTeamRoles is the set of FGA relations assignable at team scope.
+var ValidTeamRoles = []string{RoleTeamMaintainer, RoleTeamMember}
 
 // ClientRoles is the subset of project roles a client_admin may assign to
 // other client users (enforces SCRUM-114 footnote 5).
@@ -50,6 +70,14 @@ var All9ProjectPermissions = []string{
 	PermCanUpload, PermCanApprove, PermCanCreateMeasurement, PermCanRunAnalysis,
 	PermCanExport, PermCanViewDraft, PermCanViewPublished, PermCanManageUsers, PermCanCallAPI,
 }
+
+// Computed permissions on a workspace and on a team.
+const (
+	PermWorkspaceCanView          = "can_view"
+	PermWorkspaceCanManage        = "can_manage"
+	PermWorkspaceCanCreateProject = "can_create_project"
+	PermTeamCanManage             = "can_manage"
+)
 
 // Computed permissions on a survey. Survey-scoped relations are NOT the same
 // as project-scoped — survey's `can_view` is derived from `can_view_published`
@@ -79,6 +107,26 @@ func IsValidProjectRole(r string) bool {
 // IsValidOrgRole returns true if r is in ValidOrgRoles.
 func IsValidOrgRole(r string) bool {
 	for _, v := range ValidOrgRoles {
+		if v == r {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValidWorkspaceRole returns true if r is in ValidWorkspaceRoles.
+func IsValidWorkspaceRole(r string) bool {
+	for _, v := range ValidWorkspaceRoles {
+		if v == r {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValidTeamRole returns true if r is in ValidTeamRoles.
+func IsValidTeamRole(r string) bool {
+	for _, v := range ValidTeamRoles {
 		if v == r {
 			return true
 		}

@@ -7,6 +7,7 @@ const (
 	TypeProject      = "project"
 	TypeSurvey       = "survey"
 	TypeWorkspace    = "workspace"
+	TypeTeam         = "team"
 )
 
 // Subject formats a generic FGA reference: "<type>:<id>".
@@ -25,3 +26,18 @@ func OrganisationSubject(id string) string     { return Subject(TypeOrganisation
 func ProjectSubject(id string) string          { return Subject(TypeProject, id) }
 func SurveySubject(id string) string           { return Subject(TypeSurvey, id) }
 func WorkspaceSubject(id string) string        { return Subject(TypeWorkspace, id) }
+func TeamSubject(id string) string             { return Subject(TypeTeam, id) }
+
+// Userset formats everyone holding relation on an object: "<type>:<id>#<relation>".
+func Userset(typ, id, relation string) string {
+	return Subject(typ, id) + "#" + relation
+}
+
+// TeamMembers is the subject that grants a role to every member of a team.
+func TeamMembers(teamID string) string { return Userset(TypeTeam, teamID, RoleTeamMember) }
+
+// OrganisationMembers is the subject that grants a role to everyone in an
+// organisation.
+func OrganisationMembers(orgID string) string {
+	return Userset(TypeOrganisation, orgID, RoleMember)
+}
