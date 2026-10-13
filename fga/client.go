@@ -14,16 +14,18 @@
 //     latest uploaded model. Pinning at the wrapper level means individual
 //     services cannot accidentally omit it.
 //
-//  3. Seven call shapes cover all current needs (WriteTuple, WriteTuples,
-//     DeleteTuple, Check, BatchCheck, ListObjects, Read). SCRUM-121 added
-//     Read to support the reverse-lookup required by ListProjectMembers.
-//     Anything more exotic should either extend this file (with the same
-//     pinning guarantee) or be raised for review.
+//  3. Ten call shapes cover all current needs (WriteTuple, WriteTuples,
+//     DeleteTuple, DeleteTuples, Apply, Check, BatchCheck, ListObjects,
+//     ListUsers, Read). SCRUM-121 added Read to support the reverse-lookup
+//     required by ListProjectMembers. Anything more exotic should either
+//     extend this file (with the same pinning guarantee) or be raised for
+//     review.
 package fga
 
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	openfga "github.com/openfga/go-sdk"
 	"github.com/openfga/go-sdk/client"
@@ -37,9 +39,19 @@ type Client interface {
 	WriteTuple(ctx context.Context, user, relation, object string) error
 	WriteTuples(ctx context.Context, tuples []TupleRequest) error
 	DeleteTuple(ctx context.Context, user, relation, object string) error
+	// DeleteTuples removes tuples in chunks of 100; absent tuples are not an
+	// error.
+	DeleteTuples(ctx context.Context, tuples []TupleRequest) error
+	// Apply writes and deletes in one atomic request of at most 100 tuples.
+	// Writing a tuple that exists or deleting one that does not is not an
+	// error, so the same change can be applied twice.
+	Apply(ctx context.Context, writes, deletes []TupleRequest) error
 	Check(ctx context.Context, user, relation, object string) (bool, error)
 	BatchCheck(ctx context.Context, user string, checks []CheckRequest) (map[string]bool, error)
 	ListObjects(ctx context.Context, user, relation, objectType string) ([]string, error)
+	// ListUsers returns everyone of userType ("user:<id>") holding relation on
+	// object, through usersets and inheritance as well as direct tuples.
+	ListUsers(ctx context.Context, object, relation, userType string) ([]string, error)
 	// Read returns all tuples matching the partial filter. To list all members
 	// of an object, pass Object only (leave User/Relation empty). Pages are
 	// walked automatically via the SDK's continuation token; the hard cap is
@@ -52,6 +64,7 @@ type Client interface {
 // is goroutine-safe and amortises an HTTP transport + connection pool.
 type SDKClient struct {
 	sdk     *client.OpenFgaClient
+	storeID string
 	modelID string
 }
 
@@ -118,7 +131,7 @@ func newClient(apiURL, storeID, modelID, authToken string) (*SDKClient, error) {
 		return nil, fmt.Errorf("fga: build sdk client: %w", err)
 	}
 
-	return &SDKClient{sdk: sdk, modelID: modelID}, nil
+	return &SDKClient{sdk: sdk, storeID: storeID, modelID: modelID}, nil
 }
 
 // WriteTuple inserts a single relationship tuple. Returns an error if the
@@ -180,6 +193,59 @@ func (c *SDKClient) DeleteTuple(ctx context.Context, user, relation, object stri
 	_, err := c.sdk.DeleteTuples(ctx).Body(body).Execute()
 	if err != nil {
 		return fmt.Errorf("fga: delete tuple (%s, %s, %s): %w", user, relation, object, err)
+	}
+	return nil
+}
+
+// DeleteTuples removes tuples in chunks of fgaWriteBatchLimit. Like
+// WriteTuples, each chunk is atomic but the whole call is not.
+func (c *SDKClient) DeleteTuples(ctx context.Context, tuples []TupleRequest) error {
+	for start := 0; start < len(tuples); start += fgaWriteBatchLimit {
+		end := min(start+fgaWriteBatchLimit, len(tuples))
+		if err := c.Apply(ctx, nil, tuples[start:end]); err != nil {
+			return fmt.Errorf("fga: delete tuples [%d..%d]: %w", start, end, err)
+		}
+	}
+	return nil
+}
+
+const (
+	onDuplicateIgnore = "ignore"
+	onMissingIgnore   = "ignore"
+)
+
+// Apply goes through the API client rather than the SDK's client layer,
+// which cannot ask the server to ignore duplicate writes and missing deletes.
+func (c *SDKClient) Apply(ctx context.Context, writes, deletes []TupleRequest) error {
+	if len(writes)+len(deletes) == 0 {
+		return nil
+	}
+	if len(writes)+len(deletes) > fgaWriteBatchLimit {
+		return fmt.Errorf("fga: apply: %d tuples exceed the %d a single write may carry", len(writes)+len(deletes), fgaWriteBatchLimit)
+	}
+	body := openfga.WriteRequest{AuthorizationModelId: &c.modelID}
+	if len(writes) > 0 {
+		keys := make([]openfga.TupleKey, 0, len(writes))
+		for _, t := range writes {
+			keys = append(keys, openfga.TupleKey{User: t.User, Relation: t.Relation, Object: t.Object})
+		}
+		w := openfga.NewWriteRequestWrites(keys)
+		onDuplicate := onDuplicateIgnore
+		w.OnDuplicate = &onDuplicate
+		body.Writes = w
+	}
+	if len(deletes) > 0 {
+		keys := make([]openfga.TupleKeyWithoutCondition, 0, len(deletes))
+		for _, t := range deletes {
+			keys = append(keys, openfga.TupleKeyWithoutCondition{User: t.User, Relation: t.Relation, Object: t.Object})
+		}
+		d := openfga.NewWriteRequestDeletes(keys)
+		onMissing := onMissingIgnore
+		d.OnMissing = &onMissing
+		body.Deletes = d
+	}
+	if _, _, err := c.sdk.OpenFgaApi.Write(ctx, c.storeID).Body(body).Execute(); err != nil {
+		return fmt.Errorf("fga: apply (%d writes, %d deletes): %w", len(writes), len(deletes), err)
 	}
 	return nil
 }
@@ -277,6 +343,30 @@ func (c *SDKClient) ListObjects(ctx context.Context, user, relation, objectType 
 		return nil, fmt.Errorf("fga: list objects (user=%s, relation=%s, type=%s): %w", user, relation, objectType, err)
 	}
 	return resp.GetObjects(), nil
+}
+
+// ListUsers asks for users of one type, without a relation on the filter, so
+// usersets come back expanded into the users they contain.
+func (c *SDKClient) ListUsers(ctx context.Context, object, relation, userType string) ([]string, error) {
+	typ, id, ok := strings.Cut(object, ":")
+	if !ok {
+		return nil, fmt.Errorf("fga: list users: object %q is not <type>:<id>", object)
+	}
+	resp, err := c.sdk.ListUsers(ctx).Body(client.ClientListUsersRequest{
+		Object:      openfga.FgaObject{Type: typ, Id: id},
+		Relation:    relation,
+		UserFilters: []openfga.UserTypeFilter{{Type: userType}},
+	}).Execute()
+	if err != nil {
+		return nil, fmt.Errorf("fga: list users (object=%s, relation=%s, type=%s): %w", object, relation, userType, err)
+	}
+	users := make([]string, 0, len(resp.GetUsers()))
+	for _, u := range resp.GetUsers() {
+		if u.Object != nil {
+			users = append(users, Subject(u.Object.Type, u.Object.Id))
+		}
+	}
+	return users, nil
 }
 
 // fgaReadHardCap is the maximum number of tuples Read will accumulate across

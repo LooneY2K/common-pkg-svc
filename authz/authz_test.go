@@ -70,6 +70,14 @@ func (f *fakeClient) ListObjects(_ context.Context, user, relation, objectType s
 	return f.objects, nil
 }
 
+func (f *fakeClient) DeleteTuples(context.Context, []fga.TupleRequest) error { return nil }
+
+func (f *fakeClient) Apply(context.Context, []fga.TupleRequest, []fga.TupleRequest) error { return nil }
+
+func (f *fakeClient) ListUsers(context.Context, string, string, string) ([]string, error) {
+	return nil, nil
+}
+
 func (f *fakeClient) Read(_ context.Context, filter fga.ReadFilter) ([]fga.TupleRecord, error) {
 	f.reads = append(f.reads, filter)
 	if f.readErr != nil {
